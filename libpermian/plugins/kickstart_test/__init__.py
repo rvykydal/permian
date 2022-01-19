@@ -224,6 +224,7 @@ class KickstartTestWorkflow(GroupedWorkflow):
         self.groupReportResult(self.crcList, Result('running', current_results=current_results))
 
         command = self.runner_command + tests
+        LOGGER.debug("Number of kickstart tests to be run: %d", len(tests))
         LOGGER.info("Running %s", command)
         with subprocess.Popen(
             command,
