@@ -133,6 +133,11 @@ class BootIsoStructure(OtherStructure):
     pass
 
 
+@api.events.register_structure('scenario')
+class ScenarioStructure(OtherStructure):
+    pass
+
+
 @api.workflows.register("kickstart-test")
 class KickstartTestWorkflow(GroupedWorkflow):
     @classmethod
@@ -152,6 +157,30 @@ class KickstartTestWorkflow(GroupedWorkflow):
         self.retry = self.settings.getboolean('kickstart_test', 'retry_on_failure')
         if self.retry:
             self.runner_command.append("--retry")
+
+    def _get_runner_arguments_for_platform(self):
+        arguments = []
+        if self.event.scenario:
+            try:
+                platform = self.event.scenario['platform']
+            except KeyError:
+                pass
+            else:
+                if platform == "rhel8":
+                    arguments = [
+                        "--platform",
+                        "rhel8",
+                        "--defaults",
+                        os.path.join(self.ksrepo_dir, "scripts/defaults-rhel8.sh")
+                    ]
+                elif platform == "rhel9":
+                    arguments = [
+                        "--platform",
+                        "rhel9",
+                        "--defaults",
+                        os.path.join(self.ksrepo_dir, "scripts/defaults-rhel9.sh")
+                    ]
+        return arguments
 
     def setup(self):
         if self.event.bootIso:
@@ -180,6 +209,9 @@ class KickstartTestWorkflow(GroupedWorkflow):
                 stderr=subprocess.PIPE,
                 check=True,
             )
+
+        # Setting these arguments requires path to the repo
+        self.runner_command.extend(self._get_runner_arguments_for_platform())
 
         self.boot_iso_dest = os.path.join(self.ksrepo_dir, BOOT_ISO_RELATIVE_PATH)
 
