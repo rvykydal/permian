@@ -2,9 +2,11 @@ import logging
 import tempfile
 import subprocess
 import os
+import stat
 import shutil
 import requests
 import itertools
+from collections import namedtuple
 
 from libpermian.plugins import api
 from libpermian.workflows.isolated import GroupedWorkflow
@@ -15,6 +17,14 @@ from libpermian.result import Result
 LOGGER = logging.getLogger(__name__)
 
 BOOT_ISO_RELATIVE_PATH = 'data/images/boot.iso'
+BOOT_ISO_PATH_IN_TREE = 'images/boot.iso'
+
+PlatformArguments = namedtuple('PlatformArguments', ['platform', 'defaults'])
+PLATFORM_ARGUMENTS = {
+    "rhel8": PlatformArguments("rhel8", "scripts/defaults-rhel8.sh"),
+    "rhel9": PlatformArguments("rhel9", "scripts/defaults-rhel9.sh"),
+}
+DEFAULT_DEFAULTS_FILE = "scripts/defaults.sh"
 
 
 class KicstartTestBatchCurrentResults():
@@ -140,6 +150,7 @@ class ScenarioStructure(OtherStructure):
 
 @api.workflows.register("kickstart-test")
 class KickstartTestWorkflow(GroupedWorkflow):
+
     @classmethod
     def factory(cls, testRuns, crcList):
         cls(testRuns, crcList)
@@ -157,30 +168,7 @@ class KickstartTestWorkflow(GroupedWorkflow):
         self.retry = self.settings.getboolean('kickstart_test', 'retry_on_failure')
         if self.retry:
             self.runner_command.append("--retry")
-
-    def _get_runner_arguments_for_platform(self):
-        arguments = []
-        if self.event.scenario:
-            try:
-                platform = self.event.scenario['platform']
-            except KeyError:
-                pass
-            else:
-                if platform == "rhel8":
-                    arguments = [
-                        "--platform",
-                        "rhel8",
-                        "--defaults",
-                        os.path.join(self.ksrepo_dir, "scripts/defaults-rhel8.sh")
-                    ]
-                elif platform == "rhel9":
-                    arguments = [
-                        "--platform",
-                        "rhel9",
-                        "--defaults",
-                        os.path.join(self.ksrepo_dir, "scripts/defaults-rhel9.sh")
-                    ]
-        return arguments
+        self.defaults_file_path = ""
 
     def setup(self):
         if self.event.bootIso:
@@ -210,8 +198,12 @@ class KickstartTestWorkflow(GroupedWorkflow):
                 check=True,
             )
 
-        # Setting these arguments requires path to the repo
-        self.runner_command.extend(self._get_runner_arguments_for_platform())
+        command_args, defaults_file_path, tree_boot_iso_url = self.process_scenario(
+            self.event.scenario
+        )
+        self.runner_command.extend(command_args)
+        self.defaults_file_path = defaults_file_path
+        self.boot_iso_url = self.boot_iso_url or tree_boot_iso_url
 
         self.boot_iso_dest = os.path.join(self.ksrepo_dir, BOOT_ISO_RELATIVE_PATH)
 
@@ -220,6 +212,61 @@ class KickstartTestWorkflow(GroupedWorkflow):
             self.fetch_boot_iso(self.boot_iso_url, self.boot_iso_dest)
         else:
             LOGGER.info("Default rawhide installer boot.iso will be fetched.")
+
+    def process_scenario(self, scenario):
+        """Get test parameters from scenario event structure
+
+        :param scenario: structure holding scenario data
+        :type scenario: ScenarioStructure
+        :returns: tuple with
+                  - list of additional launcher arguments
+                  - path of tenmporary override defaults file to be used by launcher
+                  - boot.iso url based on installation tree location
+        :rtype: (list(str), str, str))
+        """
+        tree_boot_iso_url = None
+        command_args = []
+
+        installation_tree = None
+        platform = None
+        if scenario:
+            try:
+                installation_tree = scenario['installation_tree']
+            except KeyError:
+                pass
+            try:
+                platform = scenario['platform']
+            except KeyError:
+                pass
+
+        defaults_file = DEFAULT_DEFAULTS_FILE
+        if platform in PLATFORM_ARGUMENTS:
+            command_args.extend(["--platform", PLATFORM_ARGUMENTS[platform].platform])
+            defaults_file = PLATFORM_ARGUMENTS[platform].defaults
+
+        defaults_file_path = self._create_override_defaults_file(defaults_file, installation_tree)
+        command_args.extend(["--defaults", defaults_file_path])
+
+        if installation_tree:
+            tree_boot_iso_url = os.path.join(installation_tree, BOOT_ISO_PATH_IN_TREE)
+
+        return (command_args, defaults_file_path, tree_boot_iso_url)
+
+    def _create_override_defaults_file(self, defaults_file, installation_tree):
+        with tempfile.NamedTemporaryFile("w", delete=False, prefix="defaults-") as f:
+            content = "# Defaults file overriding the sourced one"
+            # source the overriden file
+            content += f"\nsource {defaults_file}"
+            # override defaults
+            if installation_tree:
+                content += f"\nKSTEST_URL={installation_tree}"
+
+            fpath = f.name
+            LOGGER.info(f"Using override defaults file {fpath}:\n{content}")
+            f.write(content)
+
+        os.chmod(fpath, os.stat(fpath).st_mode | stat.S_IROTH)
+        return fpath
 
     @staticmethod
     def fetch_boot_iso(iso_url, dest):
@@ -291,6 +338,9 @@ class KickstartTestWorkflow(GroupedWorkflow):
                 os.remove(self.boot_iso_dest)
             except FileNotFoundError:
                 LOGGER.debug("Installer boot.iso %s not found", self.boot_iso_dest)
+
+        if self.defaults_file_path:
+            os.unlink(self.defaults_file_path)
 
         if not self.ksrepo_local_dir:
             tempdir = os.path.normpath(os.path.join(self.ksrepo_dir, '..'))

@@ -2,10 +2,12 @@ import unittest
 import os
 import copy
 import shutil
+from textwrap import dedent
 
 from libpermian.testruns import TestRuns
 from libpermian.events.base import Event
 from libpermian.settings import Settings
+from libpermian.plugins.kickstart_test import ScenarioStructure, DEFAULT_DEFAULTS_FILE
 
 from tclib.library import Library
 
@@ -150,3 +152,121 @@ class TestKickstartTestWorkflowResultsParsing(unittest.TestCase):
         expected_results = copy.copy(EXPECTED_RESULTS[OUTPUT_DUMP_FILE_REGULAR])
         expected_results['keyboard-convert-vc'] = ('running', None, False)
         self._run_with_expected_result(expected_results)
+
+
+class TestScenarioEventStructureProcessing(unittest.TestCase):
+    """Test processing of scenario event structure."""
+
+    DEFAULTS_FILE_TEMPLATE = """
+# Defaults file overriding the sourced one
+source {file_path}
+{kstest_url}
+    """
+
+    cases = [
+        (
+            ScenarioStructure(
+                None,
+            ),
+            (
+                [],
+                DEFAULTS_FILE_TEMPLATE.format(file_path=DEFAULT_DEFAULTS_FILE,
+                                              kstest_url=""),
+                None,
+            ),
+        ),
+        (
+            ScenarioStructure(
+                None,
+                platform='rhel8',
+            ),
+            (
+                ['--platform', 'rhel8'],
+                DEFAULTS_FILE_TEMPLATE.format(file_path="scripts/defaults-rhel8.sh",
+                                              kstest_url=""),
+                None,
+            ),
+        ),
+        (
+            ScenarioStructure(
+                None,
+                platform='rhel9',
+            ),
+            (
+                ['--platform', 'rhel9'],
+                DEFAULTS_FILE_TEMPLATE.format(file_path="scripts/defaults-rhel9.sh",
+                                              kstest_url=""),
+                None,
+            ),
+        ),
+        (
+            ScenarioStructure(
+                None,
+                platform='unknown',
+            ),
+            (
+                [],
+                DEFAULTS_FILE_TEMPLATE.format(file_path=DEFAULT_DEFAULTS_FILE,
+                                              kstest_url=""),
+                None,
+            ),
+        ),
+        (
+            ScenarioStructure(
+                None,
+                installation_tree='http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/'
+            ),
+            (
+                [],
+                DEFAULTS_FILE_TEMPLATE.format(file_path=DEFAULT_DEFAULTS_FILE,
+                                              kstest_url='KSTEST_URL=http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/'),
+                f"http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/images/boot.iso"
+            ),
+        ),
+    ]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.library = Library('./tests/test_library/kickstart-test/basic')
+        cls.settings = Settings(
+            cmdline_overrides={
+                'kickstart_test': {
+                    'runner_command': "echo containers/runner/launch"
+                },
+            },
+            environment={},
+            settings_locations=[],
+        )
+        cls.event = TestFakePOCEvent(cls.settings)
+
+    def setUp(self):
+        self.testRuns = TestRuns(self.library, self.event, self.settings)
+        self._ensure_file_exists(DUMMY_BOOT_ISO_URL[7:])
+
+    def _ensure_file_exists(self, path):
+        if not os.path.isfile(path):
+            with open(path, 'w'):
+                pass
+
+    def _check_result(self, workflow, scenario, expected_result):
+        args, fpath, url = workflow.process_scenario(scenario)
+
+        defaults_args = ["--defaults", fpath]
+        expected_args = expected_result[0].copy()
+        expected_args.extend(defaults_args)
+        self.assertEqual(args, expected_args)
+
+        with open(fpath, "r") as f:
+            content = f.read()
+        expected_defaults_content = expected_result[1]
+        self.assertEqual(dedent(expected_defaults_content.strip()), dedent(content.strip()))
+        os.unlink(fpath)
+
+        self.assertEqual(url, expected_result[2])
+
+    def testWorkflowRun(self):
+        executed_workflows = set()
+        self.assertEqual(len(self.testRuns.caseRunConfigurations), 1)
+        workflow = self.testRuns.caseRunConfigurations[0].workflow
+        for scenario, expected_result in self.cases:
+            self._check_result(workflow, scenario, expected_result)
