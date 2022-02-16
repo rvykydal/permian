@@ -168,6 +168,9 @@ class KickstartTestWorkflow(GroupedWorkflow):
         self.retry = self.settings.getboolean('kickstart_test', 'retry_on_failure')
         if self.retry:
             self.runner_command.append("--retry")
+        self.timeout = self.settings.get('kickstart_test', 'timeout')
+        if self.timeout:
+            self.runner_command.extend(["--timeout", self.timeout])
         self.defaults_file_path = ""
 
     def setup(self):
