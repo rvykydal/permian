@@ -16,6 +16,8 @@ LOGGER = logging.getLogger(__name__)
 
 BOOT_ISO_RELATIVE_PATH = 'data/images/boot.iso'
 
+SUPPORTED_ARCHITECTURES = {'x86_64'}
+
 
 class KicstartTestBatchCurrentResults():
     """Container for storing individual results of kickstart tests run in a batch.
@@ -137,10 +139,12 @@ class BootIsoStructure(OtherStructure):
 class KickstartTestWorkflow(GroupedWorkflow):
     @classmethod
     def factory(cls, testRuns, crcList):
-        cls(testRuns, crcList)
+        for (arch, ), crcList in crcList.by_configuration('architecture').items():
+            cls(testRuns, crcList, arch=arch)
 
-    def __init__(self, testRuns, crcList):
+    def __init__(self, testRuns, crcList, arch):
         super().__init__(testRuns, crcList)
+        self.arch = arch
         self.ksrepo_dir = None
         self.ksrepo_local_dir = self.settings.get('kickstart_test', 'kstest_local_repo')
         self.boot_iso_url = None
@@ -152,7 +156,14 @@ class KickstartTestWorkflow(GroupedWorkflow):
 
     def setup(self):
         if self.event.bootIso:
-            self.boot_iso_url = self.event.bootIso['x86_64']
+            try:
+                self.boot_iso_url = self.event.bootIso[self.arch]
+            except KeyError:
+                pass
+
+        if not self.boot_iso_url:
+            LOGGER.info(f"Installer boot.iso location configuration for {self.arch} is missing")
+            return
 
         self.groupReportResult(self.crcList, Result('queued'))
 
@@ -180,11 +191,8 @@ class KickstartTestWorkflow(GroupedWorkflow):
 
         self.boot_iso_dest = os.path.join(self.ksrepo_dir, BOOT_ISO_RELATIVE_PATH)
 
-        if self.boot_iso_url:
-            LOGGER.info("Fetchig installer boot.iso %s", self.boot_iso_url)
-            self.fetch_boot_iso(self.boot_iso_url, self.boot_iso_dest)
-        else:
-            LOGGER.info("Default rawhide installer boot.iso will be fetched.")
+        LOGGER.info("Fetchig installer boot.iso %s", self.boot_iso_url)
+        self.fetch_boot_iso(self.boot_iso_url, self.boot_iso_dest)
 
     @staticmethod
     def fetch_boot_iso(iso_url, dest):
@@ -218,6 +226,10 @@ class KickstartTestWorkflow(GroupedWorkflow):
         return result
 
     def execute(self):
+        if self.arch not in SUPPORTED_ARCHITECTURES:
+            LOGGER.info(f"Architecture {self.arch} is not supported, skipping the execution.")
+            return
+
         self.groupReportResult(self.crcList, Result('started'))
 
         test_to_crcs = self._map_tests_to_crcs(self.crcList)
