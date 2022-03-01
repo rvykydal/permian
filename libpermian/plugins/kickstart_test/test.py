@@ -41,7 +41,15 @@ class TestFakePOCEvent(Event):
         )
 
 
-class TestKickstartTestWrorkflow(unittest.TestCase):
+class TestFakeMultiplatformEvent(Event):
+    def __init__(self, settings, event_type='kstest-multiplatform'):
+        super().__init__(
+            settings,
+            event_type,
+        )
+
+
+class TestKickstartTestWorkflow(unittest.TestCase):
     """Basic test with dummy / noop launcher."""
     @classmethod
     def setUpClass(cls):
@@ -56,10 +64,8 @@ class TestKickstartTestWrorkflow(unittest.TestCase):
             environment={},
             settings_locations=[],
         )
-        cls.event = TestFakePOCEvent(cls.settings)
 
     def setUp(self):
-        self.testRuns = TestRuns(self.library, self.event, self.settings)
         self._ensure_file_exists(DUMMY_BOOT_ISO_URL[7:])
 
     def _ensure_file_exists(self, path):
@@ -67,7 +73,9 @@ class TestKickstartTestWrorkflow(unittest.TestCase):
             with open(path, 'w'):
                 pass
 
-    def testWorkflowRun(self):
+    def testBasicWorkflowRun(self):
+        event = TestFakePOCEvent(self.settings)
+        self.testRuns = TestRuns(self.library, event, self.settings)
         executed_workflows = set()
         for caseRunConfiguration in self.testRuns.caseRunConfigurations:
             with self.subTest(caseRunConfiguration=caseRunConfiguration):
@@ -75,6 +83,19 @@ class TestKickstartTestWrorkflow(unittest.TestCase):
                     caseRunConfiguration.workflow.run()
                     executed_workflows.add(id(caseRunConfiguration.workflow))
         self.assertEqual(len(executed_workflows), 3)
+
+    def testMultiplePlatformsRun(self):
+        """Test multiple platform configurations in test plan."""
+        event = TestFakeMultiplatformEvent(self.settings)
+        self.testRuns = TestRuns(self.library, event, self.settings)
+        executed_workflows = set()
+        for caseRunConfiguration in self.testRuns.caseRunConfigurations:
+            with self.subTest(caseRunConfiguration=caseRunConfiguration):
+                if id(caseRunConfiguration.workflow) not in executed_workflows:
+                    # Although it is not supported, it should not crash
+                    caseRunConfiguration.workflow.run()
+                    executed_workflows.add(id(caseRunConfiguration.workflow))
+        self.assertEqual(len(executed_workflows), 1)
 
 
 class TestKickstartTestWorkflowResultsParsing(unittest.TestCase):

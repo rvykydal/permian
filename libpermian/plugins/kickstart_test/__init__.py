@@ -230,6 +230,17 @@ class KickstartTestWorkflow(GroupedWorkflow):
             LOGGER.info(f"Architecture {self.arch} is not supported, skipping the execution.")
             return
 
+        command = self.runner_command
+
+        platforms = self.crcList.by_configuration('platform')
+        if len(platforms) > 1:
+            LOGGER.info(f"Multiple platforms are not supported, skipping the execution. Platforms: {platforms}")
+            return
+        else:
+            platform = list(platforms.keys())[0][0]
+            if platform:
+                command = command + ['--platform', platform]
+
         self.groupReportResult(self.crcList, Result('started'))
 
         test_to_crcs = self._map_tests_to_crcs(self.crcList)
@@ -237,7 +248,7 @@ class KickstartTestWorkflow(GroupedWorkflow):
         current_results = KicstartTestBatchCurrentResults(tests)
         self.groupReportResult(self.crcList, Result('running', current_results=current_results))
 
-        command = self.runner_command + tests
+        command = command + tests
         LOGGER.info(f"Runner is starting. {current_results.summary_message()}")
         LOGGER.info("Running %s", command)
         with subprocess.Popen(
