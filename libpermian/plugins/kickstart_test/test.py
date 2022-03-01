@@ -74,7 +74,7 @@ class TestKickstartTestWrorkflow(unittest.TestCase):
                 if id(caseRunConfiguration.workflow) not in executed_workflows:
                     caseRunConfiguration.workflow.run()
                     executed_workflows.add(id(caseRunConfiguration.workflow))
-        self.assertEqual(len(executed_workflows), 1)
+        self.assertEqual(len(executed_workflows), 3)
 
 
 class TestKickstartTestWorkflowResultsParsing(unittest.TestCase):
