@@ -60,6 +60,24 @@ class TestFakeInstallationUrlsEvent(TestFakePOCEvent):
         )
 
 
+class TestFakeScenariosEvent(Event):
+    def __init__(self, settings, event_type='github.scheduled.daily.kstest.rhel9'):
+        super().__init__(
+            settings,
+            event_type,
+            bootIso={
+                'x86_64': DUMMY_BOOT_ISO_URL,
+            },
+            installationUrls={
+                'x86_64': {
+                    'installation_tree': 'http://example.org/the-rhel-9/compose/BaseOS/x86_64/os',
+                    'modular_url': 'http://example.org/the-rhel-9/compose/AppStream/x86_64/os',
+                    'ftp_url': 'ftp://example.org/the-rhel-9/compose/BaseOS/x86_64/os'
+                }
+            },
+        )
+
+
 class TestKickstartTestWorkflow(unittest.TestCase):
     """Basic test with dummy / noop launcher."""
     @classmethod
@@ -321,3 +339,41 @@ class TestInstallationUrlStructureProcessing(unittest.TestCase):
         workflow = self.testRuns.caseRunConfigurations[0].workflow
         for installation_urls, expected_result in self.cases:
             self._check_result(workflow, installation_urls, expected_result)
+
+
+class TestKickstartTestScenarios(unittest.TestCase):
+    """Test with example of scenarios defined in test plans."""
+    @classmethod
+    def setUpClass(cls):
+        cls.library = Library('./tests/test_library/kickstart-test/scenarios')
+        cls.settings = Settings(
+            cmdline_overrides={
+                'kickstart_test': {
+                    'runner_command': "echo containers/runner/launch",
+                    'kstest_local_repo': "/tmp/mockrepo",
+                },
+            },
+            environment={},
+            settings_locations=[],
+        )
+
+    def setUp(self):
+        self._ensure_file_exists(DUMMY_BOOT_ISO_URL[7:])
+
+    def _ensure_file_exists(self, path):
+        if not os.path.isfile(path):
+            with open(path, 'w'):
+                pass
+
+    def testScenarioRun(self):
+        """Test multiple platform configurations in test plan."""
+        event = TestFakeScenariosEvent(self.settings)
+        self.testRuns = TestRuns(self.library, event, self.settings)
+        self.assertEqual(len(self.testRuns.caseRunConfigurations), 4)
+        executed_workflows = set()
+        for caseRunConfiguration in self.testRuns.caseRunConfigurations:
+            with self.subTest(caseRunConfiguration=caseRunConfiguration):
+                if id(caseRunConfiguration.workflow) not in executed_workflows:
+                    caseRunConfiguration.workflow.run()
+                    executed_workflows.add(id(caseRunConfiguration.workflow))
+        self.assertEqual(len(executed_workflows), 1)
