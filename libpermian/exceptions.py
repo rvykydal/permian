@@ -83,3 +83,13 @@ class ResourceNotAvailable(Exception):
     """
     def __init__(self, msg):
         super().__init__(msg)
+
+class UnsupportedConfiguration(Exception):
+    """
+    Raised for test configuration value not supported by workflow.
+    """
+    def __init__(self, configuration, value):
+        msg = f"Configuration '{configuration}: {value}' is not supported"
+        self.configuration = configuration
+        self.value = value
+        super().__init__(msg)

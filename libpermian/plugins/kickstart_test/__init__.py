@@ -11,6 +11,7 @@ from libpermian.workflows.isolated import GroupedWorkflow
 from libpermian.events.base import Event
 from libpermian.events.structures.builtin import OtherStructure
 from libpermian.result import Result
+from libpermian.exceptions import UnsupportedConfiguration
 
 LOGGER = logging.getLogger(__name__)
 
@@ -155,6 +156,10 @@ class KickstartTestWorkflow(GroupedWorkflow):
         self.ksrepo_branch = self.settings.get('kickstart_test', 'kstest_repo_branch')
 
     def setup(self):
+        if self.arch not in SUPPORTED_ARCHITECTURES:
+            LOGGER.info(f"Architecture {self.arch} is not supported.")
+            raise UnsupportedConfiguration('architecture', self.arch)
+
         if self.event.bootIso:
             try:
                 self.boot_iso_url = self.event.bootIso[self.arch]
@@ -226,10 +231,6 @@ class KickstartTestWorkflow(GroupedWorkflow):
         return result
 
     def execute(self):
-        if self.arch not in SUPPORTED_ARCHITECTURES:
-            LOGGER.info(f"Architecture {self.arch} is not supported, skipping the execution.")
-            return
-
         self.groupReportResult(self.crcList, Result('started'))
 
         test_to_crcs = self._map_tests_to_crcs(self.crcList)

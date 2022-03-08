@@ -1,8 +1,0 @@
-name: kstests poc plan missing arch
-description: The simplest plan to test kickstart-test workflow plugin with missing architecture
-point_person: rvykydal@redhat.com
-artifact_type: kstest-poc
-verified_by:
-  test_cases:
-    direct_list:
-      - container-basic

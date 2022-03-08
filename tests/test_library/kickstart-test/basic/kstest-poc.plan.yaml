@@ -8,4 +8,3 @@ verified_by:
       - container-basic
 configurations:
   - architecture: x86_64
-  - architecture: aarch64
