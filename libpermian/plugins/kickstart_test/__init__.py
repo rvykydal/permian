@@ -251,9 +251,11 @@ class KickstartTestWorkflow(GroupedWorkflow):
 
         if self.event.bootIso:
             try:
-                self.boot_iso_url = self.event.bootIso[self.arch]
+                boot_iso_url = self.event.bootIso[self.arch]
             except KeyError:
-                pass
+                boot_iso_url = None
+            if boot_iso_url:
+                self.boot_iso_url = boot_iso_url
 
         if not self.boot_iso_url:
             LOGGER.info(f"Installer boot.iso location configuration for {self.arch} is missing")
