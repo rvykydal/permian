@@ -127,6 +127,48 @@ class TestFakeScenariosEventDailyiso(Event):
             },
         )
 
+class TestFakeScenariosEventDailyisoEmptyBootIso(Event):
+    def __init__(self, settings, event_type='github.scheduled.daily.kstest.daily-iso'):
+        super().__init__(
+            settings,
+            event_type,
+            bootIso={
+                'x86_64': '',
+            },
+            kstestParams={
+                'platform': "fedora_rawhide",
+                'urls': {
+                    'x86_64': {
+                        'installation_tree': 'http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/$basearch/os/',
+                        'modular_url': 'http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Modular/$basearch/os/',
+                        'metalink': 'https://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch',
+                        'mirrorlist': 'https://mirrors.fedoraproject.org/mirrorlist?repo=fedora-$releasever&arch=$basearch',
+                        'ftp_url': 'ftp://ftp.tu-chemnitz.de/pub/linux/fedora/linux/development/rawhide/Everything/$basearch/os/',
+                    }
+                }
+            },
+        )
+
+class TestFakeScenariosEventDailyisoMissingBootIsoArch(Event):
+    def __init__(self, settings, event_type='github.scheduled.daily.kstest.daily-iso'):
+        super().__init__(
+            settings,
+            event_type,
+            bootIso={
+            },
+            kstestParams={
+                'platform': "fedora_rawhide",
+                'urls': {
+                    'x86_64': {
+                        'installation_tree': 'http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/$basearch/os/',
+                        'modular_url': 'http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Modular/$basearch/os/',
+                        'metalink': 'https://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch',
+                        'mirrorlist': 'https://mirrors.fedoraproject.org/mirrorlist?repo=fedora-$releasever&arch=$basearch',
+                        'ftp_url': 'ftp://ftp.tu-chemnitz.de/pub/linux/fedora/linux/development/rawhide/Everything/$basearch/os/',
+                    }
+                }
+            },
+        )
 
 class TestKickstartTestWrorkflow(unittest.TestCase):
     """Basic test with dummy / noop launcher."""
@@ -531,3 +573,24 @@ class TestParamsToBootIso(unittest.TestCase):
         kstest_workflow = KickstartTestWorkflow(testRuns, [], 'x86_64')
         kstest_workflow.setup()
         self.assertAlmostEqual(kstest_workflow.boot_iso_url, DUMMY_BOOT_ISO_URL)
+
+    def testParamsPriority(self):
+        event = TestFakeScenariosEventDailyiso(self.settings)
+        testRuns = TestRuns(self.library, event, self.settings)
+        kstest_workflow = KickstartTestWorkflow(testRuns, [], 'x86_64')
+        kstest_workflow.setup()
+        self.assertAlmostEqual(kstest_workflow.boot_iso_url, DUMMY_BOOT_ISO_URL)
+
+    def testEmptyBootIso(self):
+        event = TestFakeScenariosEventDailyisoEmptyBootIso(self.settings)
+        testRuns = TestRuns(self.library, event, self.settings)
+        kstest_workflow = KickstartTestWorkflow(testRuns, [], 'x86_64')
+        kstest_workflow.setup()
+        self.assertEqual(kstest_workflow.boot_iso_url, 'http://example.org/the-rhel-9/compose/BaseOS/x86_64/os/images/boot.iso')
+
+    def testMissingArchBootIso(self):
+        event = TestFakeScenariosEventDailyisoMissingBootIsoArch(self.settings)
+        testRuns = TestRuns(self.library, event, self.settings)
+        kstest_workflow = KickstartTestWorkflow(testRuns, [], 'x86_64')
+        with self.assertRaises(MissingBootIso):
+            kstest_workflow.setup()
