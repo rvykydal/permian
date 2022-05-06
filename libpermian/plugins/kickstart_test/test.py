@@ -9,7 +9,7 @@ from libpermian.events.base import Event
 from libpermian.settings import Settings
 from libpermian.exceptions import UnsupportedConfiguration
 from libpermian.plugins.kickstart_test import SUPPORTED_ARCHITECTURES, \
-    KstestParamsStructure, MissingBootIso, MissingInformation, KickstartTestWorkflow
+    KstestParamsStructure, MissingBootIso, MissingInformation
 
 from tclib.library import Library
 
@@ -69,20 +69,6 @@ class TestFakeMinimalEvent(Event):
             },
         )
 
-class TestFakeKstestParamsOnly(Event):
-    def __init__(self, settings, event_type='kstest-poc'):
-        super().__init__(
-            settings,
-            event_type,
-            kstestParams={
-                'platform': "rhel9",
-                'urls': {
-                    'x86_64': {
-                        'installation_tree': 'http://example.org/the-rhel-9/compose/BaseOS/x86_64/os'
-                    }
-                }
-            }
-        )
 
 class TestFakeScenariosEventRhel9(Event):
     def __init__(self, settings, event_type='github.scheduled.daily.kstest.rhel9'):
@@ -154,17 +140,6 @@ class TestKickstartTestWrorkflow(unittest.TestCase):
 
     def testWorkflowRun(self):
         event = TestFakeMinimalEvent(self.settings)
-        testRuns = TestRuns(self.library, event, self.settings)
-        executed_workflows = set()
-        for caseRunConfiguration in testRuns.caseRunConfigurations:
-            with self.subTest(caseRunConfiguration=caseRunConfiguration):
-                if id(caseRunConfiguration.workflow) not in executed_workflows:
-                    caseRunConfiguration.workflow.run()
-                    executed_workflows.add(id(caseRunConfiguration.workflow))
-        self.assertEqual(len(executed_workflows), 1)
-
-    def testParamsOnlyWorkflowRun(self):
-        event = TestFakeKstestParamsOnly(self.settings)
         testRuns = TestRuns(self.library, event, self.settings)
         executed_workflows = set()
         for caseRunConfiguration in testRuns.caseRunConfigurations:
@@ -344,13 +319,17 @@ class TestInstallationUrlStructureProcessing(unittest.TestCase):
                     }
                 }
             ),
-            # content of the override defaults file
-            DEFAULTS_FILE_TEMPLATE.format(
-                kstest_url="export KSTEST_URL=http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/",
-                kstest_metalink="",
-                kstest_mirrorlist="",
-                kstest_ftp_url="",
-                kstest_modular_url="",
+            (
+                # boot.iso URL
+                "http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/images/boot.iso",
+                # content of the override defaults file
+                DEFAULTS_FILE_TEMPLATE.format(
+                    kstest_url="export KSTEST_URL=http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/",
+                    kstest_metalink="",
+                    kstest_mirrorlist="",
+                    kstest_ftp_url="",
+                    kstest_modular_url="",
+                ),
             ),
         ),
         (
@@ -365,7 +344,10 @@ class TestInstallationUrlStructureProcessing(unittest.TestCase):
                     }
                 }
             ),
-            None,
+            (
+                None,
+                None,
+            ),
         ),
         (
             # empty values should result in no file created
@@ -374,7 +356,10 @@ class TestInstallationUrlStructureProcessing(unittest.TestCase):
                 platform="",
                 urls={},
             ),
-            None,
+            (
+                None,
+                None,
+            ),
         ),
         (
             KstestParamsStructure(
@@ -390,12 +375,15 @@ class TestInstallationUrlStructureProcessing(unittest.TestCase):
                     }
                 }
             ),
-            DEFAULTS_FILE_TEMPLATE.format(
-                kstest_url="export KSTEST_URL=http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/$basearch/os/",
-                kstest_metalink="export KSTEST_METALINK=https://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch",
-                kstest_mirrorlist="export KSTEST_MIRRORLIST=https://mirrors.fedoraproject.org/mirrorlist?repo=fedora-$releasever&arch=$basearch",
-                kstest_ftp_url="export KSTEST_FTP_URL=ftp://ftp.tu-chemnitz.de/pub/linux/fedora/linux/development/rawhide/Everything/$basearch/os/",
-                kstest_modular_url="export KSTEST_MODULAR_URL=http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Modular/$basearch/os/",
+            (
+                "http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/$basearch/os/images/boot.iso",
+                DEFAULTS_FILE_TEMPLATE.format(
+                    kstest_url="export KSTEST_URL=http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/$basearch/os/",
+                    kstest_metalink="export KSTEST_METALINK=https://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&arch=$basearch",
+                    kstest_mirrorlist="export KSTEST_MIRRORLIST=https://mirrors.fedoraproject.org/mirrorlist?repo=fedora-$releasever&arch=$basearch",
+                    kstest_ftp_url="export KSTEST_FTP_URL=ftp://ftp.tu-chemnitz.de/pub/linux/fedora/linux/development/rawhide/Everything/$basearch/os/",
+                    kstest_modular_url="export KSTEST_MODULAR_URL=http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Modular/$basearch/os/",
+                ),
             ),
         ),
         (
@@ -409,12 +397,15 @@ class TestInstallationUrlStructureProcessing(unittest.TestCase):
                     },
                 }
             ),
-            DEFAULTS_FILE_TEMPLATE.format(
-                kstest_url="",
-                kstest_metalink="",
-                kstest_mirrorlist="",
-                kstest_ftp_url="",
-                kstest_modular_url="",
+            (
+                None,
+                DEFAULTS_FILE_TEMPLATE.format(
+                    kstest_url="",
+                    kstest_metalink="",
+                    kstest_mirrorlist="",
+                    kstest_ftp_url="",
+                    kstest_modular_url="",
+                ),
             ),
         ),
     ]
@@ -444,8 +435,11 @@ class TestInstallationUrlStructureProcessing(unittest.TestCase):
                 pass
 
     def _check_result(self, workflow, urls, expected_result):
-        fpath = workflow.process_installation_urls(urls)
-        if expected_result is None:
+        url, fpath = workflow.process_installation_urls(urls)
+        self.assertEqual(url, expected_result[0])
+
+        expected_defaults_content = expected_result[1]
+        if expected_defaults_content is None:
             self.assertIsNone(fpath)
         else:
             content = ""
@@ -453,7 +447,7 @@ class TestInstallationUrlStructureProcessing(unittest.TestCase):
                 with open(fpath, "r") as f:
                     content = f.read()
                 os.unlink(fpath)
-            self.assertEqual(dedent(expected_result.strip()), dedent(content.strip()))
+            self.assertEqual(dedent(expected_defaults_content.strip()), dedent(content.strip()))
 
     def testWorkflowRun(self):
         executed_workflows = set()
@@ -507,27 +501,3 @@ class TestKickstartTestScenarios(unittest.TestCase):
         """Test multiple platform configurations in test plan."""
         event = TestFakeScenariosEventDailyiso(self.settings)
         self._check_scenario_event(event, 3)
-
-class TestParamsToBootIso(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.library = Library('./tests/test_library/kickstart-test/basic')
-        cls.settings = Settings(
-            cmdline_overrides={},
-            environment={},
-            settings_locations=[],
-        )
-
-    def testConversion(self):
-        event = TestFakeKstestParamsOnly(self.settings)
-        testRuns = TestRuns(self.library, event, self.settings)
-        kstest_workflow = KickstartTestWorkflow(testRuns, [], 'x86_64')
-        kstest_workflow.setup()
-        self.assertAlmostEqual(kstest_workflow.boot_iso_url, 'http://example.org/the-rhel-9/compose/BaseOS/x86_64/os/images/boot.iso')
-
-    def testNoConversion(self):
-        event = TestFakeMinimalEvent(self.settings)
-        testRuns = TestRuns(self.library, event, self.settings)
-        kstest_workflow = KickstartTestWorkflow(testRuns, [], 'x86_64')
-        kstest_workflow.setup()
-        self.assertAlmostEqual(kstest_workflow.boot_iso_url, DUMMY_BOOT_ISO_URL)
