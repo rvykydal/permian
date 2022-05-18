@@ -136,7 +136,7 @@ jobs:
           PYTHONPATH=${PYTHONPATH:-}:${{ github.workspace }}/tclib \
           ./run_subset --debug-log permian.log \
             -o library.directPath="${{ github.workspace }}/kickstart-tests/testlib" \
-            -o workflows.dry_run=False \
+            -o workflows.dry_run=True \
             -o kickstart_test.kstest_local_repo="${{ github.workspace }}/kickstart-tests" \
             --testcase-query '${{ steps.generate_query.outputs.query }}' \
             run_event '{"type":"github.pr","bootIso":{"x86_64":"file://${{ github.workspace }}/images/boot.iso"},"kstestParams":{"platform":"${{ needs.pr-info.outputs.platform }}"}}'
