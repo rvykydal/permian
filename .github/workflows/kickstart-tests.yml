@@ -47,7 +47,7 @@ jobs:
   run:
     needs: pr-info
     if: needs.pr-info.outputs.allowed_user == 'true'
-    runs-on: [self-hosted, kstest]
+    runs-on: [self-hosted, kstest-permian]
     timeout-minutes: 30
     env:
        STATUS_NAME: kickstart-test smoke test
