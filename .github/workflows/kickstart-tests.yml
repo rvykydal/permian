@@ -55,6 +55,7 @@ jobs:
        TEST_JOBS: 16
        TEST_SELECTION: "--testtype smoke --skip-testtypes skip-on-fedora"
        REPOSITORY: "http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide"
+       PLATFORM: "fedora_rawhide"
     steps:
       # we post statuses manually as this does not run from a pull_request event
       # https://developer.github.com/v3/repos/statuses/#create-a-status
@@ -110,10 +111,6 @@ jobs:
       - name: Ensure http proxy is running
         run: sudo kickstart-tests/containers/squid.sh start
 
-      - name: Update container images used here
-        run: |
-          sudo podman pull quay.io/rhinstaller/kstest-runner:latest
-
       - name: Generate query arguments
         id: generate_query
         working-directory: ./kickstart-tests
@@ -127,12 +124,13 @@ jobs:
             exit 1
           fi
 
-      - name: Configure repository urls
-        id: set_installation_urls
+      - name: Configure event values
+        id: set_event_values
         run: |
           set -eux
           echo "::set-output name=installation_tree::${REPOSITORY}/Everything/x86_64/os/"
           echo "::set-output name=modular_url::${REPOSITORY}/Modular/x86_64/os/"
+          echo "::set-output name=platform::${PLATFORM}"
 
       - name: Run kickstart tests in container
         working-directory: ./permian
@@ -144,7 +142,7 @@ jobs:
             -o workflows.dry_run=True \
             -o kickstart_test.kstest_local_repo="${{ github.workspace }}/kickstart-tests" \
             --testcase-query '${{ steps.generate_query.outputs.query }}' \
-            run_event '{"type":"github.pr","kstestParams":{"platform":"${{ needs.pr-info.outputs.platform }}","urls":{"x86_64":{"installation_tree":"${{ steps.set_installation_urls.outputs.installation_tree }}","modular_url":"${{ steps.set_installation_urls.outputs.modular_url }}"}}}}'
+            run_event '{"type":"github.pr","kstestParams":{"platform":"${{ steps.set_event_values.outputs.platform }}","urls":{"x86_64":{"installation_tree":"${{ steps.set_event_values.outputs.installation_tree }}","modular_url":"${{ steps.set_event_values.outputs.modular_url }}"}}}}'
 
       - name: Collect anaconda logs
         if: always()
