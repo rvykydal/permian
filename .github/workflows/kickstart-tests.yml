@@ -127,6 +127,13 @@ jobs:
             exit 1
           fi
 
+      - name: Configure repository urls
+        id: set_installation_urls
+        run: |
+          set -eux
+          echo "::set-output name=installation_tree::${REPOSITORY}/Everything/x86_64/os/"
+          echo "::set-output name=modular_url::${REPOSITORY}/Modular/x86_64/os/"
+
       - name: Run kickstart tests in container
         working-directory: ./permian
         run: |
@@ -137,7 +144,7 @@ jobs:
             -o workflows.dry_run=True \
             -o kickstart_test.kstest_local_repo="${{ github.workspace }}/kickstart-tests" \
             --testcase-query '${{ steps.generate_query.outputs.query }}' \
-            run_event '{"type":"github.pr","kstestParams":{"platform":"${{ needs.pr-info.outputs.platform }}","urls":{"x86_64":{"installation_tree":"${REPOSITORY}/Everything/x86_64/os/","modular_url":"${REPOSITORY}/Modular/x86_64/os/"}}}}'
+            run_event '{"type":"github.pr","kstestParams":{"platform":"${{ needs.pr-info.outputs.platform }}","urls":{"x86_64":{"installation_tree":"${{ steps.set_installation_urls.outputs.installation_tree }}","modular_url":"${{ steps.set_installation_urls.outputs.modular_url }}"}}}}'
 
       - name: Collect anaconda logs
         if: always()
