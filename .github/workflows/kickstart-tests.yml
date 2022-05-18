@@ -82,6 +82,7 @@ jobs:
           path: permian
 
       - name: Rebase to current ${{ env.TARGET_BRANCH }}
+        working-directory: ./permian
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
