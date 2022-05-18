@@ -54,6 +54,7 @@ jobs:
        TARGET_BRANCH: ${{ needs.pr-info.outputs.base_ref }}
        TEST_JOBS: 16
        TEST_SELECTION: "--testtype smoke --skip-testtypes skip-on-fedora"
+       REPOSITORY: "http://dl.fedoraproject.org/pub/fedora/linux/development/rawhide"
     steps:
       # we post statuses manually as this does not run from a pull_request event
       # https://developer.github.com/v3/repos/statuses/#create-a-status
@@ -113,11 +114,6 @@ jobs:
         run: |
           sudo podman pull quay.io/rhinstaller/kstest-runner:latest
 
-      - name: Fetch boot.iso
-        run: |
-          mkdir images
-          curl -L https://download.fedoraproject.org/pub/fedora/linux/development/rawhide/Server/x86_64/os/images/boot.iso --output images/boot.iso
-
       - name: Generate query arguments
         id: generate_query
         working-directory: ./kickstart-tests
@@ -141,7 +137,7 @@ jobs:
             -o workflows.dry_run=False \
             -o kickstart_test.kstest_local_repo="${{ github.workspace }}/kickstart-tests" \
             --testcase-query '${{ steps.generate_query.outputs.query }}' \
-            run_event '{"type":"github.pr","bootIso":{"x86_64":"file://${{ github.workspace }}/images/boot.iso"},"kstestParams":{"platform":"${{ needs.pr-info.outputs.platform }}"}}'
+            run_event '{"type":"github.pr","kstestParams":{"platform":"${{ needs.pr-info.outputs.platform }}","urls":{"x86_64":{"installation_tree":"${REPOSITORY}/Everything/x86_64/os/","modular_url":"${REPOSITORY}/Modular/x86_64/os/"}}}}'
 
       - name: Collect anaconda logs
         if: always()
