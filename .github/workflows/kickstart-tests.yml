@@ -80,6 +80,7 @@ jobs:
         with:
           ref: ${{ needs.pr-info.outputs.sha }}
           path: permian
+          fetch-depth: 0
 
       - name: Rebase to current ${{ env.TARGET_BRANCH }}
         working-directory: ./permian
