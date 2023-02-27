@@ -89,14 +89,14 @@ class InstallationSourceStructure(BaseStructure):
 
 class ExecutionContainer():
     """ Handles creation, removal of container image and running commands in it """
-    def __init__(self):
+    def __init__(self, logfile):
         # Initialization of ExecutionContainer is not thread safe and is expected to be done only once in setup_lock
         self.image_name = 'anaconda-webui'
 
         img = subprocess.check_output(['podman', 'images', '-q', '-f', f'reference={self.image_name}']).decode()
         if img == '':
             containerfile = os.path.join(os.path.dirname(__file__), 'Containerfile')
-            subprocess.check_call(['podman', 'build', '-f', containerfile, '-t', self.image_name])
+            subprocess.check_call(['podman', 'build', '-f', containerfile, '-t', self.image_name], stdout=logfile, stderr=subprocess.STDOUT)
 
     def exec(self, cmd, volume, env={}, cwd='/root/workdir', volume_mode='z', log_error=True):
         # Workaround for https://github.com/containers/podman/issues/15789
@@ -228,7 +228,9 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
             self.log('Running setup', show=True)
 
             if self.use_container:
-                self.container = ExecutionContainer()
+                self.log('Building container image for Anaconda WebUI tests, see container-build.txt')
+                with self.crc.openLogfile('container-build.txt', 'w', True) as container_build_log:
+                    self.container = ExecutionContainer(container_build_log)
 
             # Add self to instances using this branch setup
             if self.git_anaconda_branch in self.instances:

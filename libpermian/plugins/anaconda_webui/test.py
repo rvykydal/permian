@@ -1,4 +1,5 @@
 import unittest
+import subprocess
 from unittest.mock import patch, MagicMock, ANY
 
 from libpermian.events.base import Event
@@ -59,7 +60,7 @@ class TestAnacondaWebUIWorkflow(unittest.TestCase):
         self.workflow.temp_dir = '/test/temp'
         self.workflow.vm_name = 'test_vm'
         self.workflow.webui_dir = '/test/temp/workdir/webui'
-        self.workflow.container = ExecutionContainer()
+        self.workflow.container = ExecutionContainer(subprocess.DEVNULL)
 
     @patch('libpermian.caserunconfiguration.CaseRunConfiguration.openLogfile')
     @patch('subprocess.Popen')
