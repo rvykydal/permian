@@ -7,6 +7,7 @@ import time
 import logging
 import threading
 import ssl
+import re
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -562,3 +563,7 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
         for file in os.listdir(test_logs_dir):
             self.log(f'Adding log file {file}')
             self.addLog(file, os.path.join(test_logs_dir, file), copy_file=True)
+
+        for file in sorted(os.listdir(self.test_workdir)):
+            if re.match(r'\d+-snapshot-.*', file):
+                self.addLog(file, os.path.join(self.test_workdir, file), copy_file=True)
