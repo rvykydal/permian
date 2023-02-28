@@ -56,6 +56,7 @@ class TestAnacondaWebUIWorkflow(unittest.TestCase):
         self.workflow = AnacondaWebUIWorkflow(testRuns, [crc], None, None)
         self.workflow.log = MagicMock()
         self.workflow.groupLog = MagicMock()
+        self.workflow.addLog = MagicMock()
         self.workflow.test_workdir = '/test/temp/workdir'
         self.workflow.temp_dir = '/test/temp'
         self.workflow.vm_name = 'test_vm'
