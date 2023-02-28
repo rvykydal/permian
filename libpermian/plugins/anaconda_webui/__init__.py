@@ -18,7 +18,8 @@ from libpermian.workflows.isolated import IsolatedWorkflow
 from libpermian.events.structures.base import BaseStructure
 from libpermian.plugins.compose import ComposeStructure
 from libpermian.exceptions import StructureConversionError
-
+from flask import url_for
+import libpermian.webui.builtin
 
 LOGGER = logging.getLogger(__name__)
 
@@ -280,7 +281,9 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
     def execute(self):
         if self.canceled:
             return
-        self.log(f'Running test {self.test_case_name}', show=True)
+        self.log(f'Running test {self.test_case_name}')
+        # Copy dynamic log file with test report
+        self.addLog('report.html', os.path.join(os.path.dirname(__file__), 'report.html'), copy_file=True)
         self.reportResult(Result('running', None, False))
 
         cmd = [self.test_script_file, self.test_case_name,
@@ -364,6 +367,8 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
         super().log(message, name)
 
     def displayStatus(self):
+        if self.crc.result.state == 'running':
+            return f'[Test report]({url_for("main.logs", crcid=self.crc.id, name="report.html")})'
         return self.last_log
 
     @property
@@ -409,7 +414,6 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
     def _wait_for_ip(self):
         """ Wait for VM to start and get IP """
         self.log('Waiting for IP', show=True)
-
         for _ in range(12):
             time.sleep(20)
             output = self._virsh_call(['domifaddr', self.vm_name])
