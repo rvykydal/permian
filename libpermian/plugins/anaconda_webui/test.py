@@ -97,10 +97,13 @@ class TestAnacondaWebUIWorkflow(unittest.TestCase):
         mocked_sleep.assert_called_once_with(10)
         mocked_urlopen.assert_called_with('http://192.168.122.42:8000/webui', context=ANY)
 
+    @patch('libpermian.caserunconfiguration.CaseRunConfiguration.openLogfile')
+    @patch('os.listdir')
     @patch('time.sleep')
-    @patch('subprocess.run')
-    def test_execute(self, mocked_run, mocked_sleep):
+    @patch('subprocess.Popen')
+    def test_execute(self, mocked_run, mocked_sleep, list_dir, mocked_openLogfile):
         mocked_run.return_value.returncode = 0
+        list_dir.return_value = []
         self.workflow.reportResult = MagicMock()
         self.workflow.vm_ip = '192.168.122.42'
 
@@ -110,6 +113,6 @@ class TestAnacondaWebUIWorkflow(unittest.TestCase):
             '/test/temp:/root/workdir:z', '-w', '/root/workdir/workdir',
             '-e', 'WEBUI_TEST_DIR=/root/workdir/workdir/webui/test',
             'anaconda-webui', 'file', 'Case', '--browser', '192.168.122.42:8000',
-            '--machine', '192.168.122.42:11'], stderr=-2, stdout=-1)
+            '--machine', '192.168.122.42:11'], stderr=-2, stdout=ANY)
 
         self.workflow.reportResult.assert_called_with(Result('complete', 'PASS', True))
