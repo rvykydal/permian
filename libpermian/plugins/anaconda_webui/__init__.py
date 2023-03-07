@@ -291,7 +291,9 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
             except subprocess.TimeoutExpired:
                 # Kill if it is still running
                 process.kill()
-                if process.poll() is None:
+                try:
+                    process.wait(1)
+                except subprocess.TimeoutExpired:
                     LOGGER.error('Test didn\'t end before timeout, and couldn\'t be killed')
             self.log('Test timeout', show=True)
 
@@ -324,7 +326,9 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
                 except subprocess.TimeoutExpired:
                     # Kill virt-install if it is still running
                     self.proc_virtinstall.kill()
-                    if self.proc_virtinstall.poll() is None:
+                    try:
+                        self.proc_virtinstall.wait(1)
+                    except subprocess.TimeoutExpired:
                         LOGGER.error('virt-install kill didn\'t work')
 
             # Close virt-install log
