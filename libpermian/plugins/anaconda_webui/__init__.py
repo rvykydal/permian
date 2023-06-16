@@ -287,7 +287,7 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
         cmd = [self.test_script_file, self.test_case_name,
                '--browser', f'{self.test_system_ip}:{self.port_webui}',
                '--machine', f'{self.test_system_ip}:{self.port_ssh}']
-        
+
         self.log('Running: ' + ' '.join(cmd))
 
         test_env = {'WEBUI_TEST_DIR': os.path.abspath(os.path.join(self.webui_dir, 'test'))}
@@ -364,7 +364,7 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
 
             # Remove VM
             self.hypervisor.remove_vm(self.vm_name)
-        
+
         # Stop port forwarding
         if self.hypervisor.remote:
             self.hypervisor.forwarding_cleanup()
@@ -376,7 +376,7 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
             self.instances[self.git_anaconda_branch].remove(self)
             if len(self.instances[self.git_anaconda_branch]) == 0:
                 self.temp_dirs[self.git_anaconda_branch].cleanup()
-                
+
                 del self.instances[self.git_anaconda_branch]
                 # Remove container image, if this was the last anacoda-webui workflow
                 if not self.instances:
@@ -450,7 +450,7 @@ class AnacondaWebUIWorkflow(IsolatedWorkflow):
 
             kernel_cmdline += f' inst.stage2={os_url}'
         else:
-            location = self.boot_iso_path
+            location = f'{self.boot_iso_path},kernel=images/pxeboot/vmlinuz,initrd=images/pxeboot/initrd.img'
 
         if self.additional_repos:
             for repo in self.additional_repos:
